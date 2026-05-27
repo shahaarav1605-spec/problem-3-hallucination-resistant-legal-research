@@ -1,50 +1,94 @@
-# LexGuard: Hallucination-Resistant Legal Research Assistant
+# Hallucination-Resistant Legal Research Assistant
 
-LexGuard is a hackathon prototype for checking AI-generated legal text against a verified legal corpus before producing an answer. It demonstrates a RAG-first workflow, citation verification, hallucination risk detection, bias flagging, and a single trust score.
+![App screenshot](docs/app-screenshot.png)
 
-## Why this matters
+LexGuard is a no-LLM legal verification chatbot. It looks like a normal chatbox, but the answer comes from a FastAPI backend that retrieves verified legal sources, checks citations, detects hallucination risk, flags bias, and returns a trust score.
 
-MIT Sloan Teaching & Learning Technologies warns that generative AI can fabricate information and amplify harmful bias. Their guidance recommends critical review, diversified sources, retrieval-based tools, structured prompts, and low-temperature factual generation. LexGuard turns that guidance into a legal research workflow where generation is blocked unless the system first retrieves source material.
+## What it does
 
-Reference: https://mitsloanedtech.mit.edu/ai/basics/addressing-ai-hallucinations-and-bias/
-
-## Features
-
-- RAG-style retrieval over a local verified legal corpus
-- Mandatory citations in the generated answer
-- Citation verifier for cases, rules, statutes, and constitutional provisions
-- Hallucination detector for unsupported dates, invented holdings, and risky absolute claims
-- Bias flagger for protected-class stereotypes and identity-based credibility language
-- Trust score aggregator with High Risk, Needs Review, and Verified states
-- No paid API key required for the demo
+- ChatGPT-style legal chat UI
+- Accepts typed questions, pasted legal text, photos, images, videos, audio, PDFs, Word files, and text documents
+- Uses a deterministic RAG engine instead of an LLM
+- Answers only legal or illegal issue verification requests
+- Refuses normal non-legal chat
+- Verifies detected legal citations against the local corpus
+- Flags unsupported dates, invented rulings, unsafe absolute legal claims, and identity-based bias
+- Produces a score with `High Risk`, `Needs Review`, or `Verified`
+- Saves chat history in the browser and also stores backend analysis history locally in `data/history.json`
+- Includes Vercel deployment configuration
 
 ## Run locally
 
+Create and activate a Python environment, then install the backend packages:
+
 ```bash
-npm start
+pip install -r requirements.txt
 ```
 
-Open http://localhost:4173.
+Start the FastAPI app:
+
+```bash
+uvicorn backend.app.main:app --reload --port 8000
+```
+
+Open:
+
+```text
+http://localhost:8000
+```
 
 ## Test
 
 ```bash
-npm test
+python -m unittest discover tests
+```
+
+## API
+
+```text
+GET    /health
+POST   /api/analyze
+GET    /api/history
+DELETE /api/history
+```
+
+`POST /api/analyze` accepts multipart form data:
+
+```text
+message: legal question or text
+files: optional uploaded files
 ```
 
 ## Project structure
 
 ```text
-index.html          Main app shell
-server.mjs          Tiny no-dependency static server
-src/corpus.js       Verified legal knowledge base
-src/ragEngine.js    Local vector-style retrieval
-src/analyzers.js    Citation, hallucination, bias, and trust modules
-src/app.js          UI orchestration
-src/styles.css      Responsive product UI
-test/               Node test suite
+api/index.py             Vercel FastAPI entrypoint
+backend/app/main.py      FastAPI app and API routes
+backend/app/legal_engine.py
+                         RAG retrieval, verification, scoring, response generation
+backend/app/corpus.py    Verified legal corpus
+backend/app/history.py   Local JSON history store
+index.html               Chat UI shell
+src/app.js               Browser chat, uploads, audio recording, history
+src/styles.css           Responsive chat styling
+requirements.txt         FastAPI dependencies
+vercel.json              Deployment routing
+tests/                   Engine tests
 ```
 
-## Production path
+## Deploy on Vercel
 
-For a real deployment, replace the demo corpus with jurisdiction-specific court orders, statutes, and precedents from licensed or official sources. Store document chunks in a vector database, preserve source metadata at chunk level, and require the response generator to cite only retrieved chunks.
+Install and login to the Vercel CLI:
+
+```bash
+npm i -g vercel
+vercel login
+```
+
+Deploy from the project folder:
+
+```bash
+vercel --prod
+```
+
+Vercel will serve the static chat UI and route `/api/*` requests to the FastAPI app.
