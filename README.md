@@ -1,31 +1,65 @@
 # Hallucination-Resistant Legal Research Assistant
 
-![App screenshot](docs/app-screenshot.png)
+![LexGuard app screenshot](docs/app-screenshot.png)
 
-LexGuard is a no-LLM legal verification chatbot. It looks like a normal chatbox, but the answer comes from a FastAPI backend that retrieves verified legal sources, checks citations, detects hallucination risk, flags bias, and returns a trust score.
+LexGuard is a RAG-powered legal research chatbot for the hackathon problem statement:
 
-## What it does
+> A Stanford HAI study found general-purpose AI chatbots hallucinated on 58-82% of legal research queries; even specialized RAG-based legal tools hallucinated more than 17% of the time. Build a RAG-powered legal chatbot grounded strictly in verified document corpora, such as court orders and statutes, with mandatory source citations and a confidence score per answer.
 
-- ChatGPT-style legal chat UI
-- Accepts typed questions, pasted legal text, photos, images, videos, audio, PDFs, Word files, and text documents
-- Uses a deterministic RAG engine instead of an LLM
-- Answers only legal or illegal issue verification requests
-- Refuses normal non-legal chat
-- Verifies detected legal citations against the local corpus
-- Flags unsupported dates, invented rulings, unsafe absolute legal claims, and identity-based bias
-- Produces a score with `High Risk`, `Needs Review`, or `Verified`
-- Saves chat history in the browser and also stores backend analysis history locally in `data/history.json`
-- Includes Vercel deployment configuration
+The project is built as a no-LLM verification assistant. It does not ask a model to invent legal reasoning. Instead, the FastAPI backend retrieves from a verified local corpus, checks the user's text, scores risk, and returns a controlled legal response with citations.
 
-## Run locally
+## Judge Highlights
 
-Create and activate a Python environment, then install the backend packages:
+- ChatGPT-style interface focused on one clean chatbox
+- Saved chat history with a sidebar conversation list
+- File support for images, photos, videos, audio, PDFs, Word files, text files, and evidence documents
+- Voice-note recording from the browser
+- FastAPI backend connected to the UI
+- Deterministic RAG retrieval over a verified legal corpus
+- Citation verifier for cases, statutes, rules, and constitutional provisions
+- Hallucination detector for invented rulings, unsupported dates, unsafe absolute claims, and contradiction signals
+- Bias flagger for demographic, racial, gender, disability, and identity-based risk language
+- Trust score per answer: `High Risk`, `Needs Review`, or `Verified`
+- Mandatory verified source cards in each legal answer
+- Refuses ordinary non-legal chat and only verifies legal or illegal issues
+- Vercel-ready structure with `api/index.py`, `requirements.txt`, and `vercel.json`
+
+## Architecture
+
+```text
+User input or upload
+        |
+        v
+FastAPI /api/analyze
+        |
+        v
+RAG retrieval from verified corpus
+        |
+        +--> Citation verifier
+        +--> Hallucination detector
+        +--> Bias flagger
+        |
+        v
+Trust score aggregator
+        |
+        v
+Verified legal response with citations
+```
+
+## Run Locally
+
+Requirements:
+
+- Python 3.12+
+- pip
+
+Install dependencies:
 
 ```bash
 pip install -r requirements.txt
 ```
 
-Start the FastAPI app:
+Start the app:
 
 ```bash
 uvicorn backend.app.main:app --reload --port 8000
@@ -35,6 +69,12 @@ Open:
 
 ```text
 http://localhost:8000
+```
+
+Windows helper:
+
+```powershell
+.\scripts\run-local.ps1
 ```
 
 ## Test
@@ -55,40 +95,46 @@ DELETE /api/history
 `POST /api/analyze` accepts multipart form data:
 
 ```text
-message: legal question or text
+message: legal question, legal paragraph, or filing excerpt
 files: optional uploaded files
 ```
 
-## Project structure
+## History
 
-```text
-api/index.py             Vercel FastAPI entrypoint
-backend/app/main.py      FastAPI app and API routes
-backend/app/legal_engine.py
-                         RAG retrieval, verification, scoring, response generation
-backend/app/corpus.py    Verified legal corpus
-backend/app/history.py   Local JSON history store
-index.html               Chat UI shell
-src/app.js               Browser chat, uploads, audio recording, history
-src/styles.css           Responsive chat styling
-requirements.txt         FastAPI dependencies
-vercel.json              Deployment routing
-tests/                   Engine tests
-```
+The app saves chat history in browser `localStorage`, so conversations remain visible after refresh and can be reopened from the left sidebar. The backend also stores local analysis history in `data/history.json` when running locally.
 
-## Deploy on Vercel
+On Vercel, browser chat history remains persistent for the user. Serverless backend history is treated as temporary because serverless filesystem storage is not permanent.
 
-Install and login to the Vercel CLI:
+## Deploy To Vercel
+
+Install and log in:
 
 ```bash
 npm i -g vercel
 vercel login
 ```
 
-Deploy from the project folder:
+Deploy from this project folder:
 
 ```bash
 vercel --prod
 ```
 
-Vercel will serve the static chat UI and route `/api/*` requests to the FastAPI app.
+Vercel serves the chat UI and routes `/api/*` requests to the FastAPI backend through `api/index.py`.
+
+## Project Structure
+
+```text
+api/index.py             Vercel FastAPI entrypoint
+backend/app/main.py      FastAPI app and routes
+backend/app/legal_engine.py
+                         RAG retrieval, verification modules, scoring, response generation
+backend/app/corpus.py    Verified legal corpus
+backend/app/history.py   Local/temporary API history storage
+index.html               Chat UI shell
+src/app.js               Chat behavior, uploads, voice notes, saved conversations
+src/styles.css           Responsive polished UI
+requirements.txt         Backend dependencies
+vercel.json              Vercel routing
+tests/                   Backend verification tests
+```

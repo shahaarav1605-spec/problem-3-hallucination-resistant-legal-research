@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>LexGuard Legal Chat</title>
-    <link rel="stylesheet" href="/src/styles.css" />
+    <link rel="stylesheet" href="/src/styles.css?v=4" />
   </head>
   <body>
     <div class="app-shell">
@@ -17,8 +17,15 @@
           </div>
         </div>
 
-        <button id="new-chat" class="sidebar-button" type="button">New chat</button>
-        <button id="clear-history" class="sidebar-button subtle" type="button">Clear history</button>
+        <div class="sidebar-actions">
+          <button id="new-chat" class="sidebar-button" type="button">New chat</button>
+          <button id="clear-history" class="sidebar-button subtle" type="button">Clear history</button>
+        </div>
+
+        <section class="history-panel">
+          <h2>Saved chats</h2>
+          <div id="history-list" class="history-list"></div>
+        </section>
 
         <section class="pipeline-card">
           <h2>Pipeline</h2>
@@ -63,6 +70,6 @@
       </main>
     </div>
 
-    <script type="module" src="/src/app.js"></script>
+    <script type="module" src="/src/app.js?v=4"></script>
   </body>
 </html>

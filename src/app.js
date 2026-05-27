@@ -7,14 +7,19 @@ const recordButton = document.querySelector("#record-button");
 const tray = document.querySelector("#attachment-tray");
 const newChatButton = document.querySelector("#new-chat");
 const clearHistoryButton = document.querySelector("#clear-history");
+const historyList = document.querySelector("#history-list");
 
-const LOCAL_HISTORY_KEY = "lexguard-chat-history";
+const STORAGE_KEY = "lexguard-conversations-v3";
+const ACTIVE_KEY = "lexguard-active-conversation-v3";
+
 const samplePrompts = [
   "Verify this: In Mata v. Avianca, lawyers have no duty to verify ChatGPT citations.",
   "Is this Article 21 argument legally supported by Maneka Gandhi?",
   "Because she is female, the witness is naturally emotional and less credible. Check this legal risk."
 ];
 
+let conversations = [];
+let activeId = "";
 let pendingFiles = [];
 let recorder = null;
 let audioParts = [];
@@ -26,6 +31,15 @@ function escapeHtml(value) {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#039;");
+}
+
+function nowLabel(value) {
+  return new Intl.DateTimeFormat(undefined, {
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit"
+  }).format(new Date(value));
 }
 
 function fileKind(file) {
@@ -50,15 +64,100 @@ function scrollDown() {
   messages.scrollTop = messages.scrollHeight;
 }
 
-function saveLocalHistory() {
-  const rows = [...messages.querySelectorAll(".message")].map((node) => ({
-    role: node.dataset.role,
-    html: node.querySelector(".bubble").innerHTML
-  }));
-  localStorage.setItem(LOCAL_HISTORY_KEY, JSON.stringify(rows.slice(-80)));
+function activeConversation() {
+  return conversations.find((chat) => chat.id === activeId);
 }
 
-function addMessage(role, html, options = {}) {
+function saveConversations() {
+  conversations = conversations
+    .map((chat) => ({
+      ...chat,
+      messages: chat.messages.slice(-80)
+    }))
+    .slice(-30);
+
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(conversations));
+  localStorage.setItem(ACTIVE_KEY, activeId);
+  renderHistoryList();
+}
+
+function welcomeHtml() {
+  return `
+    <p>Send a legal issue, illegal issue, citation, court filing excerpt, or source file. I will retrieve verified material first, then return a cited score-backed legal response.</p>
+    <div class="prompt-grid">
+      ${samplePrompts.map((prompt) => `<button class="prompt-chip" type="button">${escapeHtml(prompt)}</button>`).join("")}
+    </div>
+  `;
+}
+
+function createConversation() {
+  const createdAt = new Date().toISOString();
+  const chat = {
+    id: crypto.randomUUID ? crypto.randomUUID() : `chat-${Date.now()}`,
+    title: "New legal check",
+    createdAt,
+    updatedAt: createdAt,
+    messages: [{ role: "assistant", html: welcomeHtml() }]
+  };
+  conversations.unshift(chat);
+  activeId = chat.id;
+  saveConversations();
+  renderActiveConversation();
+}
+
+function loadConversations() {
+  try {
+    conversations = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
+  } catch {
+    conversations = [];
+  }
+
+  activeId = localStorage.getItem(ACTIVE_KEY) || conversations[0]?.id || "";
+  if (!conversations.length || !conversations.some((chat) => chat.id === activeId)) {
+    createConversation();
+    return;
+  }
+
+  renderHistoryList();
+  renderActiveConversation();
+}
+
+function titleFromMessage(message, files) {
+  if (message.trim()) {
+    return message.trim().replace(/\s+/g, " ").slice(0, 58);
+  }
+  if (files.length) return `Uploaded ${files.length} file${files.length === 1 ? "" : "s"}`;
+  return "Legal check";
+}
+
+function renderHistoryList() {
+  historyList.innerHTML = conversations.length
+    ? conversations
+        .map(
+          (chat) => `
+            <button class="history-item ${chat.id === activeId ? "active" : ""}" data-chat-id="${chat.id}" type="button">
+              <strong>${escapeHtml(chat.title)}</strong>
+              <small>${nowLabel(chat.updatedAt)}</small>
+            </button>
+          `
+        )
+        .join("")
+    : `<p class="empty-history">No saved chats yet.</p>`;
+}
+
+function renderActiveConversation() {
+  const chat = activeConversation();
+  messages.innerHTML = "";
+  if (!chat) {
+    createConversation();
+    return;
+  }
+
+  chat.messages.forEach((message) => appendDomMessage(message.role, message.html));
+  scrollDown();
+}
+
+function appendDomMessage(role, html) {
   const row = document.createElement("article");
   row.className = `message ${role}`;
   row.dataset.role = role;
@@ -67,39 +166,37 @@ function addMessage(role, html, options = {}) {
     <div class="bubble">${html}</div>
   `;
   messages.append(row);
-  if (!options.skipSave) saveLocalHistory();
+  return row;
+}
+
+function addMessage(role, html) {
+  const chat = activeConversation();
+  const row = appendDomMessage(role, html);
+
+  if (chat) {
+    chat.messages.push({ role, html });
+    chat.updatedAt = new Date().toISOString();
+    saveConversations();
+  }
+
   scrollDown();
   return row;
 }
 
-function seedChat() {
-  messages.innerHTML = "";
-  addMessage(
-    "assistant",
-    `
-      <p>Send a legal issue, illegal issue, citation, or filing excerpt. I will use the FastAPI RAG backend to retrieve verified sources, score risk, and return only a verified legal response.</p>
-      <div class="prompt-grid">
-        ${samplePrompts.map((prompt) => `<button class="prompt-chip" type="button">${escapeHtml(prompt)}</button>`).join("")}
-      </div>
-    `
-  );
-}
+function updateMessage(row, html) {
+  const chat = activeConversation();
+  row.querySelector(".bubble").innerHTML = html;
 
-function restoreLocalHistory() {
-  const saved = localStorage.getItem(LOCAL_HISTORY_KEY);
-  if (!saved) {
-    seedChat();
-    return;
+  if (chat) {
+    const index = [...messages.children].indexOf(row);
+    if (chat.messages[index]) {
+      chat.messages[index].html = html;
+      chat.updatedAt = new Date().toISOString();
+      saveConversations();
+    }
   }
 
-  try {
-    const rows = JSON.parse(saved);
-    messages.innerHTML = "";
-    rows.forEach((item) => addMessage(item.role, item.html, { skipSave: true }));
-    scrollDown();
-  } catch {
-    seedChat();
-  }
+  scrollDown();
 }
 
 function renderTray() {
@@ -135,23 +232,20 @@ function addFiles(files) {
   renderTray();
 }
 
-function renderSentFiles(files) {
+function persistedFileSummary(files) {
   if (!files.length) return "";
   return `
-    <div class="sent-files">
+    <div class="saved-files">
       ${files
-        .map((item) => {
-          if (item.kind === "image") {
-            return `<figure><img src="${item.url}" alt="${escapeHtml(item.file.name)}"><figcaption>${escapeHtml(item.file.name)}</figcaption></figure>`;
-          }
-          if (item.kind === "video") {
-            return `<figure><video src="${item.url}" controls></video><figcaption>${escapeHtml(item.file.name)}</figcaption></figure>`;
-          }
-          if (item.kind === "audio") {
-            return `<figure><audio src="${item.url}" controls></audio><figcaption>${escapeHtml(item.file.name)}</figcaption></figure>`;
-          }
-          return `<div class="document-pill"><span>File</span><strong>${escapeHtml(item.file.name)}</strong><small>${sizeLabel(item.file.size)}</small></div>`;
-        })
+        .map(
+          (item) => `
+            <div class="saved-file">
+              <span>${escapeHtml(item.kind)}</span>
+              <strong>${escapeHtml(item.file.name)}</strong>
+              <small>${sizeLabel(item.file.size)}</small>
+            </div>
+          `
+        )
         .join("")}
     </div>
   `;
@@ -208,7 +302,7 @@ function renderResult(result) {
 }
 
 async function sendMessage(message, files) {
-  const waiting = addMessage("assistant", `<p class="muted">Checking verified legal sources with FastAPI...</p>`);
+  const waiting = addMessage("assistant", `<p class="muted">Retrieving verified legal sources...</p>`);
   const response = await fetch("/api/analyze", {
     method: "POST",
     body: buildFormData(message, files)
@@ -219,8 +313,7 @@ async function sendMessage(message, files) {
   }
 
   const result = await response.json();
-  waiting.querySelector(".bubble").innerHTML = renderResult(result);
-  saveLocalHistory();
+  updateMessage(waiting, renderResult(result));
 }
 
 async function startRecording() {
@@ -280,7 +373,12 @@ composer.addEventListener("submit", async (event) => {
   if (!message && pendingFiles.length === 0) return;
 
   const files = pendingFiles;
-  addMessage("user", `${message ? `<p>${escapeHtml(message)}</p>` : "<p>Attached material for verification.</p>"}${renderSentFiles(files)}`);
+  const chat = activeConversation();
+  if (chat && chat.title === "New legal check") {
+    chat.title = titleFromMessage(message, files);
+  }
+
+  addMessage("user", `${message ? `<p>${escapeHtml(message)}</p>` : "<p>Attached material for verification.</p>"}${persistedFileSummary(files)}`);
 
   input.value = "";
   resizeInput();
@@ -301,6 +399,14 @@ messages.addEventListener("click", (event) => {
   input.focus();
 });
 
+historyList.addEventListener("click", (event) => {
+  const item = event.target.closest("[data-chat-id]");
+  if (!item) return;
+  activeId = item.dataset.chatId;
+  saveConversations();
+  renderActiveConversation();
+});
+
 input.addEventListener("input", resizeInput);
 input.addEventListener("keydown", (event) => {
   if (event.key === "Enter" && !event.shiftKey) {
@@ -309,17 +415,21 @@ input.addEventListener("keydown", (event) => {
   }
 });
 
-newChatButton.addEventListener("click", seedChat);
+newChatButton.addEventListener("click", createConversation);
+
 clearHistoryButton.addEventListener("click", async () => {
-  localStorage.removeItem(LOCAL_HISTORY_KEY);
+  localStorage.removeItem(STORAGE_KEY);
+  localStorage.removeItem(ACTIVE_KEY);
+  conversations = [];
+  activeId = "";
   try {
     await fetch("/api/history", { method: "DELETE" });
   } catch {
-    // Local history is already cleared; backend history can be cleared when the API is available.
+    // Browser-side history is already cleared.
   }
-  seedChat();
+  createConversation();
 });
 
 fileInput.accept = "image/*,video/*,audio/*,.pdf,.doc,.docx,.txt,.rtf,.csv,.md,.json";
-restoreLocalHistory();
+loadConversations();
 resizeInput();
