@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>LexGuard RAG Legal Assistant</title>
+    <link rel="stylesheet" href="./src/styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">Hallucination-resistant legal research</p>
+        <h1>LexGuard</h1>
+      </div>
+      <nav aria-label="Primary">
+        <a href="#workspace">Analyzer</a>
+        <a href="#pipeline">Pipeline</a>
+        <a href="#corpus">Corpus</a>
+      </nav>
+    </header>
+
+    <main>
+      <section class="hero" aria-labelledby="hero-title">
+        <div class="hero-copy">
+          <p class="eyebrow">RAG + citation verification + bias review</p>
+          <h2 id="hero-title">Legal answers that show their work.</h2>
+          <p>
+            Paste an AI-drafted legal memo, filing excerpt, or research query. LexGuard retrieves only from its verified corpus before generating a response, then scores citation integrity, factual support, and bias risk.
+          </p>
+          <div class="hero-actions">
+            <a class="button primary" href="#workspace">Run analysis</a>
+            <a class="button secondary" href="#pipeline">View architecture</a>
+          </div>
+        </div>
+        <div class="hero-panel" aria-label="Trust score preview">
+          <div class="signal-ring">
+            <span id="hero-score">72</span>
+            <small>trust</small>
+          </div>
+          <div class="mini-metrics">
+            <span><strong>RAG-first</strong> retrieval</span>
+            <span><strong>Mandatory</strong> citations</span>
+            <span><strong>Inline</strong> warnings</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="workspace" id="workspace">
+        <div class="input-panel">
+          <div class="section-heading">
+            <p class="eyebrow">User input</p>
+            <h2>Check a legal answer or ask a grounded query</h2>
+          </div>
+
+          <label for="matter-type">Matter type</label>
+          <select id="matter-type">
+            <option value="ai-output">AI-generated legal output</option>
+            <option value="court-filing">Court filing excerpt</option>
+            <option value="research-query">Research query</option>
+          </select>
+
+          <label for="legal-input">Document or question</label>
+          <textarea id="legal-input" spellcheck="true"></textarea>
+
+          <div class="example-row" aria-label="Example prompts">
+            <button class="chip" data-example="avianca">Mata citation check</button>
+            <button class="chip" data-example="constitutional">Article 21 query</button>
+            <button class="chip" data-example="bias">Bias stress test</button>
+          </div>
+
+          <button id="analyze-button" class="button primary full-width">Analyze with verified corpus</button>
+        </div>
+
+        <div class="results-panel" aria-live="polite">
+          <div class="score-card" id="score-card">
+            <div>
+              <p class="eyebrow">Trust score aggregator</p>
+              <h2 id="risk-label">Needs Review</h2>
+            </div>
+            <div class="score-number"><span id="trust-score">72</span><small>/100</small></div>
+          </div>
+
+          <div class="module-grid">
+            <article>
+              <span class="module-dot blue"></span>
+              <h3>Citation verifier</h3>
+              <p id="citation-summary">Checks whether cited cases, statutes, and rules exist in the verified corpus.</p>
+            </article>
+            <article>
+              <span class="module-dot rust"></span>
+              <h3>Hallucination detector</h3>
+              <p id="hallucination-summary">Flags unsupported dates, legal propositions, and invented rulings.</p>
+            </article>
+            <article>
+              <span class="module-dot amber"></span>
+              <h3>Bias flagger</h3>
+              <p id="bias-summary">Reviews demographic, racial, gender, disability, and nationality framing.</p>
+            </article>
+          </div>
+
+          <div class="answer-box">
+            <div class="section-heading compact">
+              <p class="eyebrow">Verified legal response</p>
+              <h2>Grounded answer</h2>
+            </div>
+            <div id="answer"></div>
+          </div>
+
+          <div class="evidence-box">
+            <div class="section-heading compact">
+              <p class="eyebrow">Retrieved sources</p>
+              <h2>RAG evidence</h2>
+            </div>
+            <div id="evidence-list"></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="pipeline" id="pipeline">
+        <div class="section-heading">
+          <p class="eyebrow">Inference lifecycle</p>
+          <h2>Open-book reasoning before generation</h2>
+        </div>
+        <div class="flow">
+          <div class="flow-node start">User input<span>query, filing, or AI output</span></div>
+          <div class="flow-node rag">RAG engine<span>retrieves verified passages</span></div>
+          <div class="flow-split">
+            <div class="flow-node verify">Citation verifier<span>existence and citation match</span></div>
+            <div class="flow-node detect">Hallucination detector<span>unsupported claims and dates</span></div>
+            <div class="flow-node bias">Bias flagger<span>protected-class risk language</span></div>
+          </div>
+          <div class="flow-node trust">Trust score aggregator<span>weighted module signals</span></div>
+          <div class="flow-node answer">Response generator<span>warnings, citations, confidence</span></div>
+        </div>
+      </section>
+
+      <section class="corpus" id="corpus">
+        <div class="section-heading">
+          <p class="eyebrow">Verified legal knowledge base</p>
+          <h2>Curated documents used by this demo</h2>
+        </div>
+        <div id="corpus-list" class="corpus-list"></div>
+      </section>
+    </main>
+
+    <footer>
+      <p>
+        Built from MIT Sloan TLT guidance on hallucination, bias, source diversification, and retrieval-based tools. This prototype is for research support and is not legal advice.
+      </p>
+    </footer>
+
+    <script type="module" src="./src/app.js"></script>
+  </body>
+</html>

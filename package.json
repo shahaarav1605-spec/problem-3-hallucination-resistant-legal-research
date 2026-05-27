@@ -1,0 +1,18 @@
+{
+  "name": "lexguard-rag-legal-assistant",
+  "version": "1.0.0",
+  "description": "Hallucination-resistant RAG legal research assistant for verified-corpus legal checking.",
+  "type": "module",
+  "scripts": {
+    "start": "node server.mjs",
+    "test": "node --test"
+  },
+  "keywords": [
+    "rag",
+    "legal-tech",
+    "hallucination-detection",
+    "citation-verification",
+    "ai-safety"
+  ],
+  "license": "MIT"
+}
